@@ -19,6 +19,7 @@
 <h4 align="center">
   <a href="https://arxiv.org/abs/2409.17280" target='_blank'>[arXiv]</a> •
   <a href="https://disco-4d.github.io/" target='_blank'>[Project Page]</a> •
+  <a href="hhttps://www.youtube.com/watch?v=iY09MlwNDeg" target='_blank'>[Video]</a> •
   <a href="" target='_blank'>[Slides]</a>
 </h4>
 
@@ -38,11 +39,46 @@ This repo is official PyTorch implementation of Disco4D: Disentangled 4D Human G
 </p>
 
 
-## Installation (TBA)
+## Installation 
 
-## Train (TBA)
+Refer to [install.md](install.md)
 
-## Evaluation (TBA)
+## Train 
+
+Prepare the dataset:
+```bash
+python lib/dataset/process_4ddress.py
+```
+
+Image-to-3D:
+
+```bash
+### Generate avatar from image
+sh run_img_synthesis.sh 
+# ### Animate avatar
+sh run_animate.sh 
+# ### Edit avatar
+sh run_edit.sh 
+```
+
+
+Video-to-4D:
+
+```bash
+### Generate avatar from 4D-Dress clips
+sh run_video_synthesis.sh 
+```
+
+## Acknowledgement
+
+This work is built on many amazing research works and open-source projects, thanks a lot to all the authors for sharing!
+- [splattingavatar](https://github.com/initialneil/SplattingAvatar)
+- [gaussian-grouping](https://github.com/lkeab/gaussian-grouping)
+- [dreamgaussian](https://github.com/dreamgaussian/dreamgaussian)
+- [gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting) and [diff-gaussian-rasterization](https://github.com/graphdeco-inria/diff-gaussian-rasterization)
+- [threestudio](https://github.com/threestudio-project/threestudio)
+- [nvdiffrast](https://github.com/NVlabs/nvdiffrast)
+- [dearpygui](https://github.com/hoffstadt/DearPyGui)
 
 
 ## Citation
