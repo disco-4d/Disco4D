@@ -10,16 +10,23 @@ import torch.nn.functional as F
 import rembg
 
 from utils.cam_utils import orbit_camera, OrbitCamera
-from lib.gs_4d_utils.gs_renderer_4d_canonical import Renderer, MiniCam
+from lib.gs_utils.gs_renderer_4d_canonical_single import Renderer, MiniCam
 
 from utils.grid_put import mipmap_linear_grid_put_2d
-from lib.mesh_utils.mesh import Mesh, safe_normalize
-from lib.gs_4d_utils.gaussian_model_4d_canonical import load_from_smplx_obj, load_from_smplx_path
+from lib.mesh_utils.mesh import safe_normalize
+from lib.gs_utils.gaussian_model_4d_canonical_single import load_from_smplx_obj, load_from_smplx_path
 import copy
+
+import lpips
+from utils.loss_utils import l1_loss, ssim
+USE_LPIPS = False
 
 def get_mesh_dict(smplx_fp, pose_type=None):
 
-    verts, faces, face_normals = load_from_smplx_path(smplx_fp, pose_type=pose_type)
+    if smplx_fp.endswith(('.obj')):
+        verts, faces, face_normals = load_from_smplx_obj(smplx_fp)
+    elif smplx_fp.endswith(('.npz')):
+        verts, faces, face_normals = load_from_smplx_path(smplx_fp, pose_type=pose_type)
     mesh_dict = {
         'mesh_verts': verts,
         'mesh_norms': face_normals,
@@ -27,8 +34,16 @@ def get_mesh_dict(smplx_fp, pose_type=None):
 
     return mesh_dict
 
-SEL_LIST = list(range(14)) 
-
+def get_cano_mesh(smplx_path, betas=None, pose_type=None):
+    if smplx_path.endswith(('.obj')):
+        verts, faces, face_normals = load_from_smplx_obj(smplx_path)
+    elif smplx_path.endswith(('.npz')):
+        verts, faces, face_normals = load_from_smplx_path(smplx_path, pose_type)
+    cano_mesh = {
+        'mesh_verts': verts,
+        'mesh_norms': face_normals,
+    }
+    return cano_mesh
 
 class GUI:
     def __init__(self, opt):
@@ -91,18 +106,9 @@ class GUI:
             self.load_input(self.opt.input) # load imgs, if has bg, then rm bg; or just load imgs
 
             self.posed_meshes = []
-        
-            # for i in range(15):
-            for i in SEL_LIST:
-                load_mesh = f'{self.opt.input_dir}/{self.opt.fid}/meshes/{i}_norm_smplx.obj'
-                verts, faces, face_normals = load_from_smplx_obj(load_mesh)
-                posed_mesh = {
-                    'mesh_verts': verts,
-                    'mesh_norms': face_normals,
-                }
-                self.posed_meshes.append(posed_mesh)
 
         self.posed_mesh = get_mesh_dict(self.opt.load_mesh)
+        self.posed_meshes.append(self.posed_mesh)
 
 
         if self.opt.load_mesh is not None:
@@ -110,12 +116,17 @@ class GUI:
                 self.renderer.load_from_pretrained(self.opt.smplx_gaussians, self.opt.load_mesh, self.opt.lgm_ply, reinitialize=True)            
             else:
                 self.renderer.initialize_from_smplx_gaussians(self.opt.smplx_gaussians, self.opt.load_mesh, self.opt.lgm_ply, reinitialize=True)            
-
+                cano_mesh = get_cano_mesh(self.opt.load_mesh)
+                self.renderer.gaussians.update_to_posed_mesh(posed_mesh = cano_mesh)
         else:
             # initialize gaussians to a blob
             self.renderer.initialize(num_pts=self.opt.num_pts)
 
         self.seed_everything()
+
+        if USE_LPIPS:
+            self.loss_fn_vgg = lpips.LPIPS(net='vgg').to(torch.device('cuda', torch.cuda.current_device()))
+
 
     def seed_everything(self):
         try:
@@ -186,10 +197,6 @@ class GUI:
             self.guidance_svd = StableVideoDiffusion(self.device)
             print(f"[INFO] loaded SVD!")
 
-            # mv_np_images, self.mv_cameras = self.images_to_video() 
-            # self.mv_images, self.mv_masks = self.images_segmentation(mv_np_images)
-
-
         # input image
         if self.input_img is not None:
             self.input_img_torch = torch.from_numpy(self.input_img).permute(2, 0, 1).unsqueeze(0).to(self.device)
@@ -228,6 +235,9 @@ class GUI:
         starter.record()
 
         for _ in range(self.train_steps): # 1
+
+            # if self.step == (1000-1):
+            #     self.renderer.gaussians.reinitialize_positions()
             
             self.renderer.gaussians.update_to_posed_mesh(posed_mesh = self.posed_mesh)
 
@@ -249,12 +259,17 @@ class GUI:
                 out = self.renderer.render(cur_cam)
                 
                 # rgb loss
-                image = out["image"].unsqueeze(0) 
+                image = out["image"].unsqueeze(0) # [1, 3, H, W] in [0, 1]
                 loss = loss + 10000 * step_ratio * F.mse_loss(image, self.input_img_torch_list[b_idx]) / self.opt.batch_size
 
+                if USE_LPIPS:
+                    gt_image = self.input_img_torch_list[b_idx]
+                    lambda_dssim = 1
+                    loss = loss + lambda_dssim * (1.0 - ssim(image, gt_image))
+                    loss = loss + self.loss_fn_vgg(image, gt_image).reshape(-1).squeeze()
+                    
             ### novel view (manual batch)
             render_resolution = 128 if step_ratio < 0.3 else (256 if step_ratio < 0.6 else 512)
-            # render_resolution = 512
             images = []
             poses = []
             vers, hors, radii = [], [], []
@@ -328,7 +343,6 @@ class GUI:
                 self.renderer.gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
 
                 if self.step % self.opt.densification_interval == 0:
-                    # size_threshold = 20 if self.step > self.opt.opacity_reset_interval else None
                     self.renderer.gaussians.densify_and_prune(self.opt.densify_grad_threshold, min_opacity=0.01, extent=0.5, max_screen_size=1)
                 
                 if self.step % self.opt.opacity_reset_interval == 0:
@@ -342,26 +356,24 @@ class GUI:
 
     
     def load_input(self, file):
-        file_list = [file.replace('000_rgba.png', f'{x:03d}_rgba.png') for x in SEL_LIST]
         self.input_img_list, self.input_mask_list = [], []
-        for file in file_list:
-            # load image
-            print(f'[INFO] load image from {file}...')
-            img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
-            if img.shape[-1] == 3:
-                if self.bg_remover is None:
-                    self.bg_remover = rembg.new_session()
-                img = rembg.remove(img, session=self.bg_remover)
-                cv2.imwrite(file.replace('.png', '_rgba.png'), img) 
-            img = cv2.resize(img, (self.W, self.H), interpolation=cv2.INTER_AREA)
-            img = img.astype(np.float32) / 255.0
-            input_mask = img[..., 3:]
-            # white bg
-            input_img = img[..., :3] * input_mask + (1 - input_mask)
-            # bgr to rgb
-            input_img = input_img[..., ::-1].copy()
-            self.input_img_list.append(input_img)
-            self.input_mask_list.append(input_mask)
+        print(f'[INFO] load image from {file}...')
+        img = cv2.imread(file, cv2.IMREAD_UNCHANGED)
+        if img.shape[-1] == 3:
+            if self.bg_remover is None:
+                self.bg_remover = rembg.new_session()
+            img = rembg.remove(img, session=self.bg_remover)
+            cv2.imwrite(file.replace('.png', '_rgba.png'), img) 
+        img = cv2.resize(img, (self.W, self.H), interpolation=cv2.INTER_AREA)
+        img = img.astype(np.float32) / 255.0
+        input_mask = img[..., 3:]
+        # white bg
+        input_img = img[..., :3] * input_mask + (1 - input_mask)
+        # bgr to rgb
+        input_img = input_img[..., ::-1].copy()
+        self.input_img_list.append(input_img)
+        self.input_mask_list.append(input_mask)
+
 
     @torch.no_grad()
     def save_model(self, mode='geo', texture_size=1024, t=0):
@@ -383,7 +395,6 @@ class GUI:
 
             albedo = torch.zeros((h, w, 3), device=self.device, dtype=torch.float32)
             cnt = torch.zeros((h, w, 1), device=self.device, dtype=torch.float32)
-
             vers = [0] * 8 + [-45] * 8 + [45] * 8 + [-89.9, 89.9]
             hors = [0, 45, -45, 90, -90, 135, -135, 180] * 3 + [0, 0]
 
@@ -611,35 +622,30 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="path to the yaml config file")
-    parser.add_argument("--batch", required=True, help="path to the yaml config file")
+    parser.add_argument("--batch", type=lambda x: (str(x).lower() == 'true'), required=True, help="True or False for the first stage")
     parser.add_argument("--model", required=False, help="path to the yaml config file")
     parser.add_argument("--dir", required=False, help="path to the main dir")
-    parser.add_argument("--img_dir", required=False, help="path to the img dir")
-
 
     args, extras = parser.parse_known_args()
 
     # override default config from cli
     opt = OmegaConf.merge(OmegaConf.load(args.config), OmegaConf.from_cli(extras))
 
-
     if args.batch:
         args_dir = args.dir
-        SEL_LIST = list(range(14)) 
-        
-        input_dir = f'data/{args_dir}'
-        opt.input_dir = input_dir
-        img_dirs = os.listdir(input_dir)
+        input_dir = f'data/{args.dir}/img'
+        img_paths = [i for i in os.listdir(input_dir)]
 
-        for imdir in img_dirs:
-            opt.input = f'{input_dir}/{imdir}/img/000_rgba.png'
+        for impath in img_paths:
+            opt.input = f'{input_dir}/{impath}' 
             
-            FID = imdir
-            opt.fid = FID
-            opt.smplx_gaussians = f'logs/output/{args.img_dir}/{FID}_square_rgba_clothed_smplx.ply' # # f'logs/output/peoplesnapshot2/male-3-casual_square_rgba_clothed_smplx_model.ply'
-            opt.load_mesh = f'logs/output/{args.img_dir}/{FID}_square_rgba_smplx.npz' 
-            opt.lgm_ply = f'logs/output/{args.img_dir}/{FID}_square_rgba_seg_model_dens4.ply' # logs/output/shhq/image_001170_square_rgba_refined_opt_model_seg_model.ply
-            opt.save_path = f'{args_dir}/{args.model}/{imdir}'
+            opt.fid = impath.split('_square_rgba.png')[0] # FID
+            FID = opt.fid
+            opt.smplx_gaussians = f'logs/output/{args_dir}/{FID}_square_rgba_clothed_smplx.ply' 
+            opt.load_mesh = f'logs/output/{args_dir}/{FID}_square_rgba_smplx.npz' 
+            opt.lgm_ply = f'logs/output/{args_dir}/{FID}_square_rgba_seg_model_dens4.ply' 
+            opt.use_pretrained=False
+            opt.save_path = f'{args_dir}/{args.model}/{FID}'
             
             gui = GUI(opt)
 
@@ -647,4 +653,3 @@ if __name__ == "__main__":
 
             del gui
             torch.cuda.empty_cache()
-
