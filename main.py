@@ -537,7 +537,7 @@ class GUI:
                 self.renderer.gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
 
                 if self.step >= self.opt.density_start_iter and self.step % self.opt.densification_interval == 0:
-                    size_threshold = 20 if self.step > opt.opacity_reset_interval else None
+                    size_threshold = 20 if self.step > self.opt.opacity_reset_interval else None
                     self.renderer.gaussians.densify_and_prune(
                         self.opt.densify_grad_threshold, 
                         min_opacity=self.opt.densify_min_opacity, 
