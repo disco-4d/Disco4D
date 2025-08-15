@@ -1,0 +1,113 @@
+### Input
+# input rgba image path (default to None, can be load in GUI too)
+input: 
+input_back: 
+input_left:
+input_right:
+# input text prompt (default to None, can be input in GUI too)
+prompt: a highly detailed photo of a naked bald woman
+negative_prompt: "ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions"
+# input mesh for stage 2 (auto-search from stage 1 output path if None)
+mesh: 'logs/output/thuman2/0021/thuman2_scale.obj'
+# estimated elevation angle for input image 
+elevation: 0
+# reference image resolution
+ref_size: 1024
+# density thresh for mesh extraction
+density_thresh: 1
+
+### Output
+outdir: logs
+mesh_format: obj
+save_path: ???
+
+### Training
+# use mvdream instead of sd 2.1
+mvdream: False
+# use imagedream
+imagedream: False
+# use stable-zero123 instead of zero123-xl
+stable_zero123: False 
+# guidance loss weights (0 to disable)
+lambda_sd: 0 # 1 # 0
+lambda_zero123: 1 #  1
+# training batch size per iter
+batch_size: 1
+# training iterations for stage 1
+iters: 2000
+# training iterations for stage 2
+iters_refine: 50
+# training camera radius
+radius: 1.5
+# training camera fovy
+fovy: 49.1 # align with zero123 rendering setting (ref: https://github.com/cvlab-columbia/zero123/blob/main/objaverse-rendering/scripts/blender_script.py#L61
+# checkpoint to load for stage 1 (should be a ply file)
+load:
+# whether allow geom training in stage 2
+train_geo: False
+# prob to invert background color during training (0 = always black, 1 = always white)
+invert_bg_prob: 0.5
+
+
+### GUI
+gui: False
+force_cuda_rast: False
+# GUI resolution
+H: 800
+W: 800
+
+### Gaussian splatting
+num_pts: 100000
+sh_degree: 0
+position_lr_init: 0 # 0.001
+position_lr_final: 0 # 0.00002
+position_lr_delay_mult: 0.02
+position_lr_max_steps: 500
+feature_lr: 0.02 # 0.01
+opacity_lr: 0 # 0.05 # 0 # 0.05
+scaling_lr: 0 # 0.005 # 0.005 # 0 # 0.005 # 0 # 0.005
+rotation_lr: 0 # 0.005
+percent_dense: 0.1
+density_start_iter: 100
+density_end_iter: 3000
+densification_interval: 100
+opacity_reset_interval: 700
+densify_grad_threshold: 0.5
+
+### Textured Mesh
+geom_lr: 0 # 0.0001
+texture_lr: 0.2
+render_learnable: False
+
+# load_mesh: '/home/pangyyyyy/Documents/Public/github/dreamgaushuman/logs/output/synbody_f000000_rgba_initmesh2/synbody_f000000_rgba_initmesh6b.obj'
+load_mesh: # 'logs/output/thuman2/0021/thuman2_scale.obj'
+force_points_outside: False
+use_normal: False
+input_zoom: False
+anisotropy_regularizer: True
+
+seg_lr: 0.01
+
+force_nonskin_category: False
+
+dataset: # thuman2
+sample: # '0021'
+
+
+# TRAIN TEX WITH MAIN2_SCALE
+rescale_smplx: False
+exclude_cloth: False
+train_smplx_params: True
+train_tex: True
+
+smplx_params_path: logs/output/animateanyone/demo12_000_rgba_lgm_smplx.npz # '/mnt/nvme1n1/Datasets/thuman2/smplx/0021.pkl'
+animation_sequence: data/amass/Olivia_Satisfied_C3D_stageii.npz
+animation_model_ply: logs/output/thuman2/0021_model.ply
+train_smplx_only: True
+train_fixed_smplx: True # trains in fixed smplx params at the start
+
+use_pretrained_smplx: False
+pretrained_smplx: logs/output/eva_colored/eva_colored_smplx_model.ply
+
+
+train_segmentation: True
