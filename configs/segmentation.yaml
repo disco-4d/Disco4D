@@ -1,0 +1,20 @@
+# Segmentation contract — keep all fields in sync if you swap the model.
+# Loaded by lib.seg_config.set_active(...) at the orchestrator.
+model_name: "mattmdjaga/segformer_b2_clothes"
+num_classes: 16
+# Clothing label ids (everything that isn't body/skin in the model's label space).
+nonskin_categories: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+# Pseudo-GT remap: model labels outside [0, num_classes) get folded into 0.
+# segformer_b2_clothes emits 18 classes; collapse Bag(16)/Scarf(17) into background.
+cat_map:
+  16: 0
+  17: 0
+# tag -> list of label ids, used for per-garment renders in phase 5.
+tag_categories:
+  hair:  [2]
+  shirt: [4]
+  pants: [5, 6]
+  shoes: [9, 10]
+  dress: [7]
+# Categories rendered in main_seg_batch's per-class GUI loop.
+render_categories: [2, 4, 5, 6, 7, 9, 10]

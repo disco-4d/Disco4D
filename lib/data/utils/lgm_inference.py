@@ -25,16 +25,21 @@ def run_lgm_pipeline(img_dir, svd_dir, lgm_dir):
 
     for fname in os.listdir(img_dir):
         fid = fname.split('.png')[0]
+        if os.path.exists(os.path.join(lgm_dir, f'{fid}.ply')):
+            continue
         img_paths = [os.path.join(svd_dir, fid, 'img', f'{i:04d}.png') for i in [0, 5, 10, 15]]
         process(opt, img_paths, fid)
 
     opt.test_path = lgm_dir
     for ply_file in glob.glob(f'{lgm_dir}/*.ply'):
+        obj_file = ply_file.replace('.ply', '.obj')
+        if os.path.exists(obj_file):
+            continue
         print(f"Processing {ply_file}")
         opt.test_path = ply_file
         converter = Converter(opt).cuda()
         converter.fit_nerf()
         converter.fit_mesh()
         converter.fit_mesh_uv()
-        converter.export_mesh(ply_file.replace('.ply', '.obj'))
+        converter.export_mesh(obj_file)
         del converter

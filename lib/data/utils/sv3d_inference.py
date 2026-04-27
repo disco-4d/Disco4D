@@ -8,12 +8,25 @@ import rembg
 
 from guidance.sv3d import build_sv3d_model, sample as sv3d_pipe
 
+def _sv3d_done(svd_dir, fid):
+    mp4 = os.path.join(svd_dir, f"{fid}_sv3d.mp4")
+    rgba_0 = os.path.join(svd_dir, fid, 'rgba', '0000.png')
+    img_20 = os.path.join(svd_dir, fid, 'img', '0020.png')
+    return os.path.exists(mp4) and os.path.exists(rgba_0) and not os.path.exists(img_20)
+
+
 def run_sv3d_inference(img_dir, svd_dir):
-    model = build_sv3d_model(num_steps=30, device='cuda')
     elevations_deg = 0
     azimuths_deg = list(np.linspace(0, 360, 21) % 360)
 
-    for fname in os.listdir(img_dir):
+    pending = [fname for fname in os.listdir(img_dir)
+               if not _sv3d_done(svd_dir, os.path.splitext(fname)[0])]
+    if not pending:
+        return
+
+    model = build_sv3d_model(num_steps=30, device='cuda')
+
+    for fname in pending:
         file_path = os.path.join(img_dir, fname)
         fid = os.path.splitext(fname)[0]
         frames = sv3d_pipe(

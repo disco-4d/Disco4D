@@ -1,11 +1,16 @@
-import numpy as np
-import torch
+import os
 import os.path as osp
-# from config import cfg
-from utils.smplx import smplx
 import pickle
 
-human_model_path = '/home/pangyyyyy/Documents/Public/github/cvpr/dreamgaussian/utils/human_model_files'
+import numpy as np
+import torch
+
+from utils.smplx import smplx
+
+human_model_path = os.environ.get(
+    'HUMAN_MODEL_PATH',
+    osp.join(osp.dirname(osp.abspath(__file__)), 'human_model_files'),
+)
 class SMPLX(object):
     def __init__(self):
         self.layer_arg = {'create_global_orient': False, 'create_body_pose': False, 'create_left_hand_pose': False, 'create_right_hand_pose': False, 'create_jaw_pose': False, 'create_leye_pose': False, 'create_reye_pose': False, 'create_betas': False, 'create_expression': False, 'create_transl': False}

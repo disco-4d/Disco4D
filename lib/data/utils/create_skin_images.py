@@ -14,6 +14,11 @@ def generate_skin_variants(img_dir, seg_dir, clothless_dir, skincolor_dir):
     os.makedirs(skincolor_dir, exist_ok=True)
 
     for fname in tqdm(sorted(glob.glob(f'{img_dir}/*.png'))):
+        clothless_path = fname.replace('/img/', '/clothless_img/')
+        skin_path = fname.replace('/img/', '/skin_img/')
+        if os.path.exists(clothless_path) and os.path.exists(skin_path):
+            continue
+
         img = cv2.imread(fname, cv2.IMREAD_UNCHANGED)
         alpha = img[:, :, -1]
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR).astype(np.float32) / 255.0
@@ -43,7 +48,7 @@ def generate_skin_variants(img_dir, seg_dir, clothless_dir, skincolor_dir):
         result = filled.copy()
         result[skin_mask_bool] = np_img_uint8[skin_mask_bool]
         rgba = np.dstack((result, np.ones_like(alpha) * 255))
-        Image.fromarray(rgba.astype(np.uint8)).save(fname.replace('/img/', '/clothless_img/'))
+        Image.fromarray(rgba.astype(np.uint8)).save(clothless_path)
 
         full_skin = np.dstack((filled, np.ones_like(alpha) * 255))
-        Image.fromarray(full_skin.astype(np.uint8)).save(fname.replace('/img/', '/skin_img/'))
+        Image.fromarray(full_skin.astype(np.uint8)).save(skin_path)

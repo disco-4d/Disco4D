@@ -1,0 +1,64 @@
+### Input
+input:
+prompt:
+mesh:
+elevation: 0
+ref_size: 256
+density_thresh: 0.5
+
+### Output
+outdir: logs
+mesh_format: obj
+save_path: ???
+
+### Training
+lambda_sd: 0
+mvdream: False
+lambda_zero123: 4
+lambda_svd: 0
+batch_size: 14
+iters: 1000
+iters_refine: 100
+radius: 1.5
+fovy: 49.1
+load:
+train_geo: False
+invert_bg_prob: 0.
+n_views: 4
+t_max: 0.5
+
+### GUI
+gui: False
+force_cuda_rast: False
+H: 256
+W: 256
+
+### Gaussian splatting
+num_pts: 5000
+sh_degree: 0
+position_lr_init: 0.001
+position_lr_final: 0.00002
+position_lr_delay_mult: 0.02
+position_lr_max_steps: 500
+feature_lr: 0.01
+opacity_lr: 0.05
+scaling_lr: 0.005
+rotation_lr: 0.005
+percent_dense: 0.1
+density_start_iter: 3000
+density_end_iter: 3000
+densification_interval: 100
+opacity_reset_interval: 700
+densify_grad_threshold: 0.05
+
+# deformation field
+deformation_lr_init: 0.00064
+deformation_lr_final: 0.00064
+deformation_lr_delay_mult: 0.01
+grid_lr_init: 0.0064
+grid_lr_final: 0.0064
+
+### Textured Mesh
+geom_lr: 0.0001
+texture_lr: 0.2
+seg_lr: 0.

@@ -11,11 +11,15 @@ def generate_configs(img_dir, configs_dir):
     name_ids = [f.replace('.png', '') for f in os.listdir(img_dir)]
 
     for name_id in name_ids:
+        out_path = os.path.join(configs_dir, f'{name_id}.yaml')
+        if os.path.exists(out_path):
+            continue
+
         with open(template_path, 'r') as f:
             data = yaml.safe_load(f)
 
         for key in ['smplx_params_path', 'save_path', 'input', 'input_back', 'input_svd', 'lgm_mesh', 'smplx_gaussians', 'load_mesh', 'lgm_ply']:
             data[key] = data[key].replace('example', name_id).replace('/compile/', f'/{dir_name}/')
 
-        with open(os.path.join(configs_dir, f'{name_id}.yaml'), 'w') as f:
+        with open(out_path, 'w') as f:
             yaml.safe_dump(data, f, sort_keys=False)

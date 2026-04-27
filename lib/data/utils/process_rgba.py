@@ -12,6 +12,9 @@ def process_images_with_background_removal(input_dir, output_dir, size, border_r
         base_name = os.path.splitext(file)[0]
         out_path = os.path.join(output_dir, f"{base_name}_square_rgba.png")
 
+        if os.path.exists(out_path):
+            continue
+
         image = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
         carved_image = rembg.remove(
             image,

@@ -117,18 +117,6 @@ class GUI:
             # initialize gaussians to a blob
             self.renderer.initialize(num_pts=self.opt.num_pts)
 
-        # # override prompt from cmdline
-        # if self.opt.prompt is not None: # None
-        #     self.prompt = self.opt.prompt
-
-        # # override if provide a checkpoint
-        # if self.opt.load is not None: # not None
-        #     self.renderer.initialize(self.opt.load)  
-        #     # self.renderer.gaussians.load_model(opt.outdir, opt.save_path)             
-        # else:
-        #     # initialize gaussians to a blob
-        #     self.renderer.initialize(num_pts=self.opt.num_pts)
-
         self.seed_everything()
 
     def seed_everything(self):
@@ -693,9 +681,9 @@ if __name__ == "__main__":
             
             FID = imdir
             opt.fid = FID
-            opt.smplx_gaussians = f'logs/output/{args.img_dir}/{FID}_square_rgba_clothed_smplx.ply' # # f'logs/output/peoplesnapshot2/male-3-casual_square_rgba_clothed_smplx_model.ply'
-            opt.load_mesh = f'logs/output/{args.img_dir}/{FID}_square_rgba_smplx.npz' 
-            opt.lgm_ply = f'logs/output/{args.img_dir}/{FID}_square_rgba_seg_model_dens4.ply' # logs/output/shhq/image_001170_square_rgba_refined_opt_model_seg_model.ply
+            opt.smplx_gaussians = f'logs/output/{args.img_dir}/{FID}_square_rgba_clothed_smplx.ply'
+            opt.load_mesh = f'logs/output/{args.img_dir}/{FID}_square_rgba_smplx.npz'
+            opt.lgm_ply = f'logs/output/{args.img_dir}/{FID}_square_rgba_seg_model_dens4.ply'
             
             opt.save_path = f'{args_dir}/{args.model}/{imdir}'
             
